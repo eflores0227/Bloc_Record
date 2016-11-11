@@ -22,8 +22,41 @@ module Persistence
       new(data)
     end
 
+    def update(ids, updates)
+      if updates.class == Hash
+        updates = BlocRecord::Utility.convert_keys(updates)
+        updates.delete("id")
+        updates_array = updates.map { |key, value|  "#{key}=#{BlocRecord::Utility.sql_strings(value)}" }
+      elsif updates.class == Array
+        updates_array = updates
+      end
+
+      if ids.class == Fixnum
+        where_clause = "WHERE id = #{ids};"
+      elsif ids.class == Array
+        where_clause = ids.empty? ? ";" : "WHERE id IN (#{ids.join(",")});"
+      else
+        where_clause = ";"
+      end
+
+      connection.execute <<-SQL
+        UPDATE #{table}
+        SET #{updates_array * ","} #{where_clause}
+      SQL
+
+      true
+    end
+
+    def update_all(updates)
+      update(nil, updates)
+    end
+
     def save
       self.save! rescue false
+    end
+
+    def update_attribute(attribute, value)
+      self.class.update(self.id, { attribute => value })
     end
 
     def save!
@@ -35,7 +68,7 @@ module Persistence
 
       feilds = self.class.attributes.map { |col| "#{col}=#{BlocRecord::Utility.sql_strings(self.instance_variable_get("@#{col}"))}" }.join(",")
 
-      self.class.connection.execute <<- SQL
+      self.class.connection.execute <<-SQL
         UPDATE #{self.class.table}
         SET #{fields}
         WHERE id = #{self.id};
