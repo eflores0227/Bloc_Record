@@ -84,6 +84,33 @@ end
     rows_to_array(rows)
   end
 
+  def select(*fields)
+    begin
+      rows = connection.execute <<-SQL
+        SELECT #{fields * ", "} FROM #{table};
+        SQL
+    raise MissingAttributeError
+    rows_array = rows_to_array(rows, fields)
+    rows_array
+  end
+
+  def limit(value, offset=0)
+    rows = connection.execute <<-SQL
+      SELECT * FROM #{table} LIMIT #{value} OFFSET #{offset};
+    SQL
+    rows_to_array(rows)
+  end
+
+  def group(*args)
+    args.join(', ')
+    rows = connection.execute <<-SQL
+      SELECT * FROM #{table}
+      GROUP BY #{conditions};
+    SQL
+
+    rows_to_array(rows)
+  end
+
   def where(*args)
     if args.count > 1
       expression = args.shift
